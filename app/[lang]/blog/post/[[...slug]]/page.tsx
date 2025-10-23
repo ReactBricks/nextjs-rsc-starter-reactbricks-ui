@@ -4,7 +4,6 @@ import {
   PageViewer,
   cleanPage,
   fetchPage,
-  fetchPages,
   getBricks,
   getMetadata,
   types,
@@ -14,6 +13,9 @@ import { ClickToEdit } from 'react-bricks/rsc/client'
 import ErrorNoKeys from '@/components/errorNoKeys'
 import ErrorNoPage from '@/components/errorNoPage'
 import config from '@/react-bricks/config'
+import { fetchBlogPost } from '@/react-bricks/external-api'
+
+export const dynamic = 'force-dynamic'
 
 const getData = async (
   slug: any,
@@ -47,10 +49,11 @@ const getData = async (
   }
 
   const page = await fetchPage({
-    slug: cleanSlug,
+    slug: 'blog-template',
     language: locale,
     config,
-    fetchOptions: { next: { revalidate: 3 } },
+    getExternalDataArgs: { slug: cleanSlug },
+    // fetchOptions: { next: { revalidate: 3 } },
   }).catch(() => {
     errorPage = true
     return null
@@ -63,43 +66,62 @@ const getData = async (
   }
 }
 
-export async function generateStaticParams({
-  params,
-}: {
-  params: { lang: string }
-}) {
-  if (!config.apiKey) {
-    return []
-  }
+// export async function generateStaticParams({
+//   params,
+// }: {
+//   params: { lang: string }
+// }) {
+//   if (!config.apiKey) {
+//     return []
+//   }
 
-  const allPages = await fetchPages(config.apiKey, {
-    language: params.lang,
-    type: 'blog',
-    pageSize: 100,
-    sort: '-publishedAt',
-  })
+//   const posts = await fetchBlogPosts()
+//   if (!posts) {
+//     return []
+//   }
 
-  const pages = allPages
-    .map((page) =>
-      page.translations.map((translation) => ({
-        slug: translation.slug.split('/'),
-      }))
-    )
-    .flat()
+//   const pages = posts.map((post) => ({
+//     slug: post.metadata.slug.split('/'),
+//   }))
 
-  return pages
-}
+//   return pages
+// }
 
 export async function generateMetadata(props: {
   params: Promise<{ lang: string; slug?: string[] }>
 }): Promise<Metadata> {
   const params = await props.params
-  const { page } = await getData(params.slug?.join('/'), params.lang)
+
+  const page = await fetchPage({
+    slug: 'blog-template',
+    language: params.lang,
+    config,
+    // fetchOptions: { next: { revalidate: 3 } },
+  }).catch(() => {
+    return null
+  })
+
   if (!page?.meta) {
     return {}
   }
 
-  return getMetadata(page)
+  const metadata = getMetadata(page)
+
+  let cleanSlug = ''
+
+  if (!params.slug) {
+    cleanSlug = '/'
+  } else if (typeof params.slug === 'string') {
+    cleanSlug = params.slug
+  } else {
+    cleanSlug = params.slug.join('/')
+  }
+
+  const post = await fetchBlogPost(cleanSlug)
+  metadata.title = post?.title || cleanSlug
+  metadata.description = post?.metadata.description || ''
+
+  return metadata
 }
 
 export default async function Page(props: {

@@ -1,15 +1,18 @@
 import type { Metadata } from 'next'
-import { fetchPages, fetchTags, types } from 'react-bricks/rsc'
+import { fetchPage, getMetadata } from 'react-bricks/rsc'
 
 import PostListItem from '@/components/PostListItem'
 import TagListItem from '@/components/TagListItem'
 import ErrorNoKeys from '@/components/errorNoKeys'
 import config from '@/react-bricks/config'
+import { fetchBlogPosts, Post } from '@/react-bricks/external-api'
+
+export const dynamic = 'force-dynamic'
 
 const getData = async (
   locale: string
 ): Promise<{
-  posts: types.PageFromList[] | null
+  posts: Post[] | null
   tags: string[] | null
   errorNoKeys: boolean
   errorPage: boolean
@@ -28,36 +31,52 @@ const getData = async (
     }
   }
 
-  const [tags, posts] = await Promise.all([
-    fetchTags(config.apiKey, undefined, undefined, undefined, {
-      next: { revalidate: 3 },
-    }),
-    fetchPages({
-      type: 'blog',
-      pageSize: 1000,
-      sort: '-publishedAt',
-      fetchExternalData: true,
-      config,
-      fetchOptions: { next: { revalidate: 3 } },
-    }).catch(() => {
-      errorPage = true
-      return null
-    }),
-  ])
+  const posts = await fetchBlogPosts()
+  if (!posts) {
+    errorPage = true
+    return {
+      posts: null,
+      tags: null,
+      errorNoKeys,
+      errorPage,
+    }
+  }
+
+  // tags contains all the tags in the posts array
+  const tags = Array.from(
+    new Set(posts.reduce((acc, post) => acc.concat(post.tags), [] as string[]))
+  ).sort()
 
   return {
     posts,
-    tags: tags.items.sort(),
+    tags,
     errorNoKeys,
     errorPage,
   }
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: 'Post List',
-    description: 'React Bricks blog starter',
+export async function generateMetadata(props: {
+  params: Promise<{ lang: string }>
+}): Promise<Metadata> {
+  const params = await props.params
+  const page = await fetchPage({
+    slug: 'blog-template',
+    language: params.lang,
+    config,
+    // fetchOptions: { next: { revalidate: 3 } },
+  }).catch(() => {
+    return null
+  })
+
+  if (!page?.meta) {
+    return {}
   }
+
+  const metadata = getMetadata(page)
+  metadata.title = 'Our latest articles'
+  metadata.description = 'React Bricks  - Our latest articles'
+
+  return metadata
 }
 
 export default async function Page(props: {
@@ -89,12 +108,15 @@ export default async function Page(props: {
                   return (
                     <PostListItem
                       key={post.id}
-                      title={post.meta.title || ''}
-                      href={post.slug}
-                      content={post.meta.description || ''}
-                      author={post.author}
-                      date={post.publishedAt || ''}
-                      featuredImg={post.meta.image}
+                      title={post.title}
+                      href={post.metadata.slug}
+                      content={post.metadata.description || ''}
+                      author={null}
+                      date={''}
+                      featuredImg={{
+                        src: post.metadata.image,
+                        alt: post.title,
+                      }}
                     />
                   )
                 })}

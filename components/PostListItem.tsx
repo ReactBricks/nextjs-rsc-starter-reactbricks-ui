@@ -7,7 +7,7 @@ interface PostListItemProps {
   title: string
   href: string
   content: string
-  author: types.Author
+  author: types.Author | null
   date: string
   featuredImg?: types.IImageSource
 }
@@ -30,7 +30,7 @@ const PostListItem: React.FC<PostListItemProps> = ({
           readonly
           source={featuredImg}
           alt="Blog article featured image"
-          imageClassName="aspect-video object-cover rounded-xs"
+          imageClassName="aspect-[1.58] object-cover rounded-xs"
         />
       )}
 
@@ -43,22 +43,24 @@ const PostListItem: React.FC<PostListItemProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={author.avatarUrl}
-            alt={author.firstName + ' ' + author.lastName}
-            className="w-8 rounded-full"
-          />
-          <div>
-            <div className="text-sm text-gray-800 dark:text-gray-100">
-              {author.firstName} {author.lastName}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              {dayjs(date).format('DD MMM YYYY')}
+        {author && (
+          <div className="flex items-center space-x-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={author.avatarUrl}
+              alt={author.firstName + ' ' + author.lastName}
+              className="w-8 rounded-full"
+            />
+            <div>
+              <div className="text-sm text-gray-800 dark:text-gray-100">
+                {author.firstName} {author.lastName}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {dayjs(date).format('DD MMM YYYY')}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </Link>
   )

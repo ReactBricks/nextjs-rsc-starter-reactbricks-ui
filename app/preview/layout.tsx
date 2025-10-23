@@ -1,4 +1,3 @@
-import ReactBricksApp from '@/components/ReactBricksApp'
 import {
   PageViewer,
   cleanPage,
@@ -8,6 +7,7 @@ import {
   types,
 } from 'react-bricks/rsc'
 
+import ReactBricksApp from '@/components/ReactBricksApp'
 import ErrorNoFooter from '@/components/errorNoFooter'
 import ErrorNoHeader from '@/components/errorNoHeader'
 import ErrorNoKeys from '@/components/errorNoKeys'
@@ -15,12 +15,24 @@ import PageLayout from '@/components/layout'
 import { ThemeProvider } from '@/components/themeProvider'
 import config from '@/react-bricks/config'
 
+import { Nunito_Sans } from 'next/font/google'
+
 import '@/css/styles.css'
+import { i18n } from '@/i18n-config'
 
 export const metadata = {
   title: 'React Bricks Starter',
   description: 'Next.js with Server Components',
 }
+
+const nunito = Nunito_Sans({
+  adjustFontFallback: false,
+  subsets: ['latin'],
+  display: 'swap',
+  weight: ['300', '400', '600', '700', '800', '900'],
+  style: ['normal', 'italic'],
+  variable: '--font-nunito',
+})
 
 register(config)
 
@@ -69,16 +81,12 @@ const getData = async (
   }
 }
 
-export default async function Layout(props: {
-  children: React.ReactNode
-  params: Promise<{ lang: string }>
-}) {
-  const params = await props.params
-
+export default async function Layout(props: { children: React.ReactNode }) {
+  const lang = i18n.defaultLocale
   const { children } = props
 
   const { header, footer, errorNoKeys, errorHeader, errorFooter } =
-    await getData(params.lang)
+    await getData(lang)
 
   // Clean the received content
   // Removes unknown or not allowed bricks
@@ -91,8 +99,10 @@ export default async function Layout(props: {
     : null
 
   return (
-    <html lang={params.lang} suppressHydrationWarning>
-      <body className={`bg-white dark:bg-[#0d1117]`}>
+    <html lang={lang} suppressHydrationWarning>
+      <body
+        className={`${nunito.variable} font-sans dark:bg-gray-900 antialiased`}
+      >
         <ThemeProvider
           attribute="class"
           storageKey="color-mode"

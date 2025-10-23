@@ -1,17 +1,20 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { fetchPages, fetchTags, types } from 'react-bricks/rsc'
+import { fetchPage, getMetadata } from 'react-bricks/rsc'
 
 import PostListItem from '@/components/PostListItem'
 import TagListItem from '@/components/TagListItem'
 import ErrorNoKeys from '@/components/errorNoKeys'
 import config from '@/react-bricks/config'
+import { Post, fetchBlogPosts } from '@/react-bricks/external-api'
+
+export const dynamic = 'force-dynamic'
 
 const getData = async (
   tag: string,
   locale: string
 ): Promise<{
-  pagesByTag: types.PageFromList[] | null
+  posts: Post[] | null
   tags: string[] | null
   errorNoKeys: boolean
   errorPage: boolean
@@ -23,74 +26,94 @@ const getData = async (
     errorNoKeys = true
 
     return {
-      pagesByTag: null,
+      posts: null,
       tags: null,
       errorNoKeys,
       errorPage,
     }
   }
 
-  const [pagesByTag, tags] = await Promise.all([
-    fetchPages({
-      tag: tag.toString(),
-      type: 'blog',
-      pageSize: 1000,
-      sort: '-publishedAt',
-      config,
-      fetchOptions: { next: { revalidate: 3 } },
-    }).catch(() => {
-      errorPage = true
-      return null
-    }),
-    fetchTags(config.apiKey, undefined, undefined, undefined, {
-      next: { revalidate: 3 },
-    }),
-  ])
+  const allPosts = await fetchBlogPosts()
+  if (!allPosts) {
+    errorPage = true
+    return {
+      posts: null,
+      tags: null,
+      errorNoKeys,
+      errorPage,
+    }
+  }
+
+  // tags contains all the tags in the posts array
+  const tags = Array.from(
+    new Set(
+      allPosts.reduce((acc, post) => acc.concat(post.tags), [] as string[])
+    )
+  ).sort()
+
+  const posts = allPosts.filter((post) => post.tags.includes(tag))
 
   return {
-    pagesByTag,
-    tags: tags.items.sort(),
+    posts,
+    tags,
     errorNoKeys,
     errorPage,
   }
 }
 
-export async function generateStaticParams({
-  params,
-}: {
-  params: { lang: string }
-}) {
-  if (!config.apiKey) {
-    return []
-  }
+// export async function generateStaticParams({
+//   params,
+// }: {
+//   params: { lang: string }
+// }) {
+//   const allPosts = await fetchBlogPosts()
+//   if (!allPosts) {
+//     return []
+//   }
 
-  const { items: tags } = await fetchTags(config.apiKey, undefined, undefined, {
-    language: params.lang,
-  })
+//   // tags contains all the tags in the posts array
+//   const tags = Array.from(
+//     new Set(
+//       allPosts.reduce((acc, post) => acc.concat(post.tags), [] as string[])
+//     )
+//   )
 
-  return tags
-}
+//   return tags
+// }
 
 export async function generateMetadata(props: {
   params: Promise<{ lang: string; tag: string }>
 }): Promise<Metadata> {
   const params = await props.params
-  return {
-    title: params.tag,
-    description: params.tag,
+
+  const page = await fetchPage({
+    slug: 'blog-template',
+    language: params.lang,
+    config,
+    // fetchOptions: { next: { revalidate: 3 } },
+  }).catch(() => {
+    return null
+  })
+
+  if (!page?.meta) {
+    return {}
   }
+
+  const metadata = getMetadata(page)
+  metadata.title = 'Our latest articles - ' + params.tag
+  metadata.description = 'Our latest articles - ' + params.tag
+
+  return metadata
 }
 
 export default async function Page(props: {
   params: Promise<{ lang: string; tag: string }>
 }) {
   const params = await props.params
-  const { pagesByTag, tags, errorNoKeys } = await getData(
-    params.tag,
-    params.lang
-  )
 
+  // decodeURIComponent to handle tags with spaces or special characters
   const tag = decodeURIComponent(params.tag)
+  const { posts, tags, errorNoKeys } = await getData(tag, params.lang)
 
   return (
     <>
@@ -120,15 +143,18 @@ export default async function Page(props: {
               <hr className="mt-6 mb-10 dark:border-gray-600" />
 
               <div className="grid lg:grid-cols-2 xl:grid-cols-3 sm:gap-12">
-                {pagesByTag?.map((post) => (
+                {posts?.map((post) => (
                   <PostListItem
                     key={post.id}
-                    title={post.meta.title || ''}
-                    href={post.slug}
-                    content={post.meta.description || ''}
-                    author={post.author}
-                    date={post.publishedAt || ''}
-                    featuredImg={post.meta.image}
+                    title={post.title}
+                    href={post.metadata.slug}
+                    content={post.metadata.description || ''}
+                    author={null}
+                    date={''}
+                    featuredImg={{
+                      src: post.metadata.image,
+                      alt: post.title,
+                    }}
                   />
                 ))}
               </div>
