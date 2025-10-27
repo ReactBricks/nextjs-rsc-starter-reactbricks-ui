@@ -15,7 +15,7 @@ export async function GET(
     }
 
     const token = process.env.PANTHEON_TOKEN
-    const siteId = process.env.PANTHEON_PAGES_SITE_ID
+    const siteId = process.env.PANTHEON_ARTICLES_SITE_ID
 
     if (!siteId || !token) {
       return Response.json(
