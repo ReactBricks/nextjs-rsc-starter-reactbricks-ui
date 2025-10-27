@@ -40,6 +40,7 @@ const config: types.ReactBricksConfig = {
   enableDefaultEmbedBrick: true,
   //permissions,  Fine-grained permissions for enterprise plans
   allowAccentsInSlugs: true,
+  apiPrefix: process.env.NEXT_PUBLIC_API_PREFIX || '',
 }
 
 export default config
